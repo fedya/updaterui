@@ -66,27 +66,73 @@ def get_rosa_version(package):
             temp.close()
     return "0"
 
-with open("packages.txt") as f:
-    packages = [line.strip() for line in f.readlines()]
-results = []
+def update_single(package):
+    with open('output.json', 'r') as f:
+        data = json.load(f)
 
-for package in packages:
+    found = False
     rosa_version = get_rosa_version(package) # здесь нужно поставить функцию-заглушку для получения версии из Rosa
     upstream_version = get_latest_version(package)
-    if upstream_version is None:
-        continue
-    status = compare_versions(rosa_version, upstream_version)
-    result = {
-        "package": package,
-        "version_rosa": rosa_version,
-        "version_upstream": upstream_version,
-        "status": status,
-        "upgrade": ""
-    }
-    results.append(result)
+    for row in data:
+        if row['package'] == package:
+            row['version_rosa'] = rosa_version
+            row['version_upstream'] = upstream_version
+            status = compare_versions(rosa_version, upstream_version)
+            row['status'] = status
+            found = True
+            break
 
-with open("output.json", "w") as f:
-    json.dump(results, f, indent=4)
+    if not found:
+        new_row = {
+            'package': package,
+            'version_rosa': get_rosa_version(package),
+            'version_upstream': get_latest_version(package),
+            'status': '',
+            'upgrade': ''
+        }
+        data.append(new_row)
+
+    with open('output.json', 'w') as f:
+        json.dump(data, f, indent=4)
+
+
+def generate_json():
+    with open("packages.txt") as f:
+        packages = [line.strip() for line in f.readlines()]
+    results = []
+    for package in packages:
+        rosa_version = get_rosa_version(package) # здесь нужно поставить функцию-заглушку для получения версии из Rosa
+        upstream_version = get_latest_version(package)
+        if upstream_version is None:
+            continue
+        status = compare_versions(rosa_version, upstream_version)
+        result = {
+            "package": package,
+            "version_rosa": rosa_version,
+            "version_upstream": upstream_version,
+            "status": status,
+            "upgrade": ""
+        }
+        results.append(result)
+
+    with open("output.json", "w") as f:
+        json.dump(results, f, indent=4)
+
+import argparse
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--generate-all', action='store_true', help='Generate JSON file for all packages')
+    parser.add_argument('--generate-single', metavar='PACKAGE', help='Update a single package in the JSON file')
+    args = parser.parse_args()
+
+    if args.generate_all:
+        generate_json()
+    if args.generate_single:
+        update_single(args.generate_single)
+
+if __name__ == '__main__':
+    main()
 
 
 #a = get_rosa_version("python-backcall")

@@ -41,6 +41,10 @@ document.getElementById('check-all-btn').addEventListener('click', function() {
                 <input type="hidden" name="package" value="{{ item.package }}">
                 <button type="submit">Run</button>
               </form>
+              <form method="POST" action="/run_single">
+                <input type="hidden" name="package" value="{{ item.package }}">
+                <button type="submit">Check</button>
+              </form>
             </td>
           </tr>
         {% endfor %}

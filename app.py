@@ -28,12 +28,20 @@ def run_command():
         json.dump(data, f)
         
     return redirect('/')
-
+@app.route("/run_single", methods=['POST'])
+def run_single():
+    # execute the check_all.py script
+    package = request.form['package']
+    subprocess.run(['/home/fdrt/webservice/6/generate.py --generate-single {}'.format(package)], shell=True)
+    # reload data from output.json file
+    with open('output.json', 'r') as f:
+        data = json.load(f)
+    return render_template('table.html', data=data)
 
 @app.route("/check_all")
 def check_all():
     # execute the check_all.py script
-    subprocess.run(['/home/fdrt/webservice/6/generate.py'])
+    subprocess.run(['/home/fdrt/webservice/6/generate.py --generate-all'], shell=True)
     # reload data from output.json file
     with open('output.json', 'r') as f:
         data = json.load(f)
