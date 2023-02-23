@@ -19,15 +19,25 @@ headers = {
     "Cache-Control": "max-age=0",
 }
 
+
 def check_python_module(package):
-    url = f"https://pypi.python.org/pypi/{package}/json"
+    url = "https://pypi.python.org/pypi/{}/json".format(package)
     response = requests.get(url)
     if response.ok:
         data = response.json()
         print(data["info"]["version"])
         return data["info"]["version"]
     else:
-        return "0"
+        package = "py" + package
+        url = "https://pypi.python.org/pypi/{}/json".format(package)
+        response = requests.get(url)
+        if response.ok:
+            data = response.json()
+            print(data["info"]["version"])
+            return data["info"]["version"]
+        else:
+            return 0
+    return "0"
 
 
 def compare_versions(v1, v2):
