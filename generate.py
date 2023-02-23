@@ -17,6 +17,17 @@ headers = {
     "Cache-Control": "max-age=0",
 }
 
+def check_python_module(package):
+    url = f"https://pypi.python.org/pypi/{package}/json"
+    response = requests.get(url)
+    if response.ok:
+        data = response.json()
+        print(data["info"]["version"])
+        return data["info"]["version"]
+    else:
+        return "0"
+
+
 def compare_versions(v1, v2):
     try:
         if LooseVersion(v1) < LooseVersion(v2):
@@ -31,16 +42,11 @@ def compare_versions(v1, v2):
     except Exception:
         pass
 
+
 def get_latest_version(package):
     if package.startswith("python-"):
        package = package.split("-", 1)[1]
-    url = f"https://pypi.python.org/pypi/{package}/json"
-    response = requests.get(url)
-    if response.ok:
-        data = response.json()
-        return data["info"]["version"]
-    else:
-        return "0"
+       return check_python_module(package)
 
 def get_rosa_version(package):
     url = "https://abf.io/import/{package}/raw/rosa2023.1/{package}.spec".format(package=package)
