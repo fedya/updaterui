@@ -52,6 +52,7 @@ def compare_versions(v1, v2):
             # our newer
             return "our-newer"
     except Exception:
+        return "something wrong here"
         pass
 
 
@@ -80,15 +81,15 @@ def get_rosa_version(package):
             print("checking ROSA git repo: {}: {}".format(package, version))
             return version
         except:
-            pass
+            return "broken"
         finally:
             os.remove(spec_file)
     return "0"
 
+
 def update_single(package):
     with open('output.json', 'r') as f:
         data = json.load(f)
-
     found = False
     rosa_version = get_rosa_version(package) # здесь нужно поставить функцию-заглушку для получения версии из Rosa
     upstream_version = get_latest_version(package)
