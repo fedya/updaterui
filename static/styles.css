@@ -1,0 +1,28 @@
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table th:nth-child(2),
+table td:nth-child(2) {
+  width: 100px;
+}
+
+th, td {
+  text-align: left;
+  padding: 5px;
+  border: 2px solid #ddd;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+
+tr.outdated {
+  background-color: #c8f7c5;
+}
+
+tr.up-to-date {
+  background-color: #bebebe;
+}
+

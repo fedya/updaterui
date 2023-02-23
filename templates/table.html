@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Package Table</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+ </head>
+<button id="check-all-btn">Check All</button>
+<script>
+document.getElementById('check-all-btn').addEventListener('click', function() {
+    fetch('/check_all').then(function(response) {
+        return response.json();
+    }).then(function(data) {
+        // reload the table with updated data
+        loadTable(data.data);
+    });
+});
+</script>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>Rosa version</th>
+          <th>Upstream version</th>
+          <th>Status</th>
+          <th>Upgrade</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in data %}
+          <tr {% if item.status == 'outdated' %}class="outdated"{% elif item.status == 'up-to-date' %}class="up-to-date"{% endif %}>
+            <td>{{ item.package }}</td>
+            <td>{{ item.version_rosa }}</td>
+            <td>{{ item.version_upstream }}</td>
+            <td>{{ item.status }}</td>
+	    <td>{{ item.upgrade }}</td>
+            <td>
+              <form method="POST" action="/run_command">
+                <input type="hidden" name="package" value="{{ item.package }}">
+                <button type="submit">Run</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
+
