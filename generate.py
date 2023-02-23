@@ -6,6 +6,8 @@ from distutils.version import LooseVersion
 import re
 import tempfile
 import json
+import rpm
+import os
 
 
 headers = {
@@ -50,7 +52,6 @@ def get_latest_version(package):
 
 def get_rosa_version(package):
     url = "https://abf.io/import/{package}/raw/rosa2023.1/{package}.spec".format(package=package)
-    print(url)
     resp = requests.get(url, headers=headers)
     temp = tempfile.NamedTemporaryFile(prefix=package, suffix=".spec")
     if resp.status_code == 404:
@@ -58,18 +59,20 @@ def get_rosa_version(package):
     if resp.status_code == 200:
         spec = resp.content
         try:
-            spec_path = temp.name
-            temp.write(spec)
-            temp.seek(0)
-            with open(spec_path, "r") as f:
-                content = f.read()
-                match = re.search(r"Version:\s+(.*)\n", content)
-                if match:
-                    return match.group(1)
+            spec_text = requests.get(url).text
+            spec_file = f"/tmp/{package}.spec"
+            with open(spec_file, "w") as f:
+                f.write(spec_text)
+            ts = rpm.TransactionSet()
+            rpm_spec = ts.parseSpec(spec_file)
+            name = rpm.expandMacro("%{name}")
+            version = rpm.expandMacro("%{version}")
+            print("checking ROSA git repo: {}: {}".format(package, version))
+            return version
         except:
             pass
         finally:
-            temp.close()
+            os.remove(spec_file)
     return "0"
 
 def update_single(package):
