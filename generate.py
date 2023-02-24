@@ -8,6 +8,7 @@ import tempfile
 import json
 import rpm
 import os
+import argparse
 
 
 headers = {
@@ -60,6 +61,7 @@ def get_latest_version(package):
     if package.startswith("python-"):
        package = package.split("-", 1)[1]
        return check_python_module(package)
+
 
 def get_rosa_version(package):
     url = "https://abf.io/import/{package}/raw/rosa2023.1/{package}.spec".format(package=package)
@@ -138,7 +140,6 @@ def generate_json():
     with open("output.json", "w") as f:
         json.dump(results, f, indent=4)
 
-import argparse
 
 def main():
     parser = argparse.ArgumentParser()
