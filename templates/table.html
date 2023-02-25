@@ -23,6 +23,7 @@ document.getElementById('check-all-btn').addEventListener('click', function() {
           <th>Package</th>
           <th>Rosa version</th>
           <th>Upstream version</th>
+          <th>Url</th>
           <th>Status</th>
           <th>Upgrade</th>
           <th>Action</th>
@@ -34,6 +35,7 @@ document.getElementById('check-all-btn').addEventListener('click', function() {
             <td>{{ item.package }}</td>
             <td>{{ item.version_rosa }}</td>
             <td>{{ item.version_upstream }}</td>
+            <td>{{ item.url }}</td>
             <td>{{ item.status }}</td>
 	    <td>{{ item.upgrade }}</td>
             <td>

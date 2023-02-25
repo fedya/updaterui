@@ -32,7 +32,7 @@ def run_command():
 def run_single():
     # execute the check_all.py script
     package = request.form['package']
-    subprocess.run(['/home/fdrt/webservice/6/generate.py --generate-single {}'.format(package)], shell=True)
+    subprocess.run(['./generate.py --generate-single {}'.format(package)], shell=True)
     # reload data from output.json file
     with open('output.json', 'r') as f:
         data = json.load(f)
@@ -41,7 +41,7 @@ def run_single():
 @app.route("/check_all")
 def check_all():
     # execute the check_all.py script
-    subprocess.run(['/home/fdrt/webservice/6/generate.py --generate-all'], shell=True)
+    subprocess.run(['./generate.py --generate-all'], shell=True)
     # reload data from output.json file
     with open('output.json', 'r') as f:
         data = json.load(f)
