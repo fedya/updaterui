@@ -15,7 +15,7 @@ def index():
 def run_command():
     package = request.form['package']
     print(package)
-    exit_code = subprocess.call(['/usr/bin/echo', 'Hello, World!'])
+    exit_code = subprocess.call(['/bin/echo', 'Hello, World!'])
 
     with open('output.json', 'r') as f:
         data = json.load(f)

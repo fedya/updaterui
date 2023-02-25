@@ -25,29 +25,15 @@ github_headers = {'User-Agent': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gec
                   'Authorization': f'token {api_key}'}
 
 def repology(package):
-    versions = []
-    www = []
     url = 'https://repology.org/api/v1/project/{}'.format(package)
-    # name is package name, i.e. vim
     response = requests.get(url)
     data = response.json()
     if data:
-       match = None
-       for d in data:
-           if all (k in d for k in ('status', 'repo')) and d['status'] == 'newest':
-               match = d
-               break
-           if all (k in d for k in ('status', 'repo')) and d['status'] == 'untrusted':
-               match = d
-               break
-           if all (k in d for k in ('status', 'repo')) and d['status'] == 'unique':
-               match = d
-               break
-       repo = match['repo']
-       www = 'https://repology.org'
-       upstream_version = match['version']
-       return upstream_version, repo
+        for d in data:
+            if all(k in d for k in ('status', 'repo')) and d['status'] in ('newest', 'untrusted', 'unique'):
+                return d['version'], d['repo']
     return "0", "0"
+
 
 def check_python_module(package):
     url = "https://pypi.python.org/pypi/{}/json".format(package)
@@ -94,6 +80,7 @@ def has_latin_letters(s):
 def gh_check(package, url):
     split_url = url.split("/")[:-1]
     apibase = 'https://api.github.com/repos' + '/' + split_url[3] + '/' + split_url[4]
+    print(apibase)
     tag_url = apibase + "/tags"
     release_url = apibase + "/releases/latest"
     gh_versions = []
@@ -151,12 +138,14 @@ def get_latest_version(package, url_base):
 
 def get_rosa_version(package):
     url = "https://abf.io/import/{package}/raw/rosa2023.1/{package}.spec".format(package=package)
+    print(url)
     resp = requests.get(url, headers=headers)
     temp = tempfile.NamedTemporaryFile(prefix=package, suffix=".spec")
-    version = None
+    version = "0"
     source_link = "empty"
     if resp.status_code == 404:
-        return "Package not found"
+        print("Package not found in git repo")
+        return version, source_link
     if resp.status_code == 200:
         spec = resp.content
         try:
@@ -192,9 +181,16 @@ def update_single(package):
     with open('output.json', 'r') as f:
         data = json.load(f)
     found = False
+    rosa_version = "0"
+    upstream_version = "0"
+    status = "0"
     rosa_version, url_base = get_rosa_version(package) # здесь нужно поставить функцию-заглушку для получения версии из Rosa
-    upstream_version = get_latest_version(package, url_base)
-    status = compare_versions(rosa_version, upstream_version)
+    try:
+        upstream_version = get_latest_version(package, url_base)
+        status = compare_versions(rosa_version, upstream_version)
+    except Exception:
+        pass
+
     for row in data:
         if row['package'] == package:
             row['version_rosa'] = rosa_version
@@ -223,11 +219,17 @@ def generate_json():
     with open("packages.txt") as f:
         packages = [line.strip() for line in f.readlines()]
     results = []
+    rosa_version = "0"
+    upstream_version = "0"
+    status = "0"
+
     for package in packages:
+        print(get_rosa_version(package))
         rosa_version, url_base = get_rosa_version(package)
-        upstream_version = get_latest_version(package, url_base)
-        if upstream_version is None:
-            continue
+        try:
+            upstream_version = get_latest_version(package, url_base)
+        except Exception:
+            pass
         status = compare_versions(rosa_version, upstream_version)
         result = {
             "package": package,
