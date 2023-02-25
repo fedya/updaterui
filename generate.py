@@ -24,22 +24,48 @@ api_key = os.environ.get('API_KEY')
 github_headers = {'User-Agent': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.2171.95 Safari/537.36',
                   'Authorization': f'token {api_key}'}
 
+def repology(package):
+    versions = []
+    www = []
+    url = 'https://repology.org/api/v1/project/{}'.format(package)
+    # name is package name, i.e. vim
+    response = requests.get(url)
+    data = response.json()
+    if data:
+       match = None
+       for d in data:
+           if all (k in d for k in ('status', 'repo')) and d['status'] == 'newest':
+               match = d
+               break
+           if all (k in d for k in ('status', 'repo')) and d['status'] == 'untrusted':
+               match = d
+               break
+           if all (k in d for k in ('status', 'repo')) and d['status'] == 'unique':
+               match = d
+               break
+       repo = match['repo']
+       www = 'https://repology.org'
+       upstream_version = match['version']
+       return upstream_version, repo
+    return "0", "0"
 
 def check_python_module(package):
     url = "https://pypi.python.org/pypi/{}/json".format(package)
     response = requests.get(url)
     if response.ok:
         data = response.json()
-        print(data["info"]["version"])
-        return data["info"]["version"]
+        if data:
+           print(data["info"]["version"])
+           return data["info"]["version"]
     else:
         package = "py" + package
         url = "https://pypi.python.org/pypi/{}/json".format(package)
         response = requests.get(url)
         if response.ok:
             data = response.json()
-            print(data["info"]["version"])
-            return data["info"]["version"]
+            if data:
+               print(data["info"]["version"])
+               return data["info"]["version"]
         else:
             return 0
     return "0"
@@ -75,25 +101,30 @@ def gh_check(package, url):
     response_rel = requests.get(release_url, headers=github_headers)
     print(release_url)
     if response_rel.ok:
-       tag_name = response_rel.json()['tag_name']
-       if has_latin_letters(tag_name):
+       tag_name = re.sub(r"[^0-9\.]", "", response_rel.json()['tag_name'])
+       if tag_name and has_latin_letters(tag_name):
            gh_versions.append("0")
-       else:
+       elif tag_name:
            gh_versions.append(tag_name)
+       else:
+           gh_versions.append("0")
 
     response_tag = requests.get(tag_url, headers=github_headers)
     print(tag_url)
     if response_tag.ok:
        data = response_tag.json()
-       project_name = (data[0]['name'])
-       versions = sorted(data, key=lambda x: x['name'], reverse=True)
-       tag_version = versions[0]
-       print(tag_version)
-       clean_tag = tag_version["name"].strip("v")
-       if has_latin_letters(clean_tag):
-           gh_versions.append("0")
-       else:
-           gh_versions.append(clean_tag)
+       if data:
+          project_name = (data[0]['name'])
+          versions = sorted(data, key=lambda x: x['name'], reverse=True)
+          tag_version = versions[0]
+          print(tag_version)
+          clean_tag = re.sub(r"[^0-9\.]", "", tag_version["name"])
+          if clean_tag and has_latin_letters(clean_tag):
+              gh_versions.append("0")
+          elif clean_tag:
+              gh_versions.append(clean_tag)
+          else:
+              gh_versions.append("0")
 
     if len(gh_versions) > 1:
        if compare_versions(gh_versions[0], gh_versions[1]) == "our-newer":
@@ -112,6 +143,9 @@ def get_latest_version(package, url_base):
     if "github" in url_base:
        print("checking github")
        return gh_check(package, url_base)
+    else:
+       upstream_version, repo = repology(package)
+       return upstream_version
     return "0"
 
 
@@ -119,6 +153,8 @@ def get_rosa_version(package):
     url = "https://abf.io/import/{package}/raw/rosa2023.1/{package}.spec".format(package=package)
     resp = requests.get(url, headers=headers)
     temp = tempfile.NamedTemporaryFile(prefix=package, suffix=".spec")
+    version = None
+    source_link = "empty"
     if resp.status_code == 404:
         return "Package not found"
     if resp.status_code == 200:
@@ -139,14 +175,17 @@ def get_rosa_version(package):
                     # path
                     # http://mirrors.n-ix.net/mariadb/mariadb-10.3.9/source/
                     source_link = '/'.join(filename.split("/")[:-1])
-                    nvs.append(source_link)
-                    nvs.append(filename)
-                    return version, source_link
+                    if source_link:
+                       nvs.append(source_link)
+                       nvs.append(filename)
+                       return version, source_link
         except:
-            return "broken"
+            print(version, source_link)
+            return version, source_link
         finally:
             os.remove(spec_file)
-    return "0"
+    print(version)
+    return version, source_link
 
 
 def update_single(package):
@@ -194,6 +233,7 @@ def generate_json():
             "package": package,
             "version_rosa": rosa_version,
             "version_upstream": upstream_version,
+            "url": url_base,
             "status": status,
             "upgrade": ""
         }
