@@ -30,21 +30,21 @@ document.getElementById('check-all-btn').addEventListener('click', function() {
         </tr>
       </thead>
       <tbody>
-        {% for item in data %}
-          <tr {% if item.status == 'outdated' %}class="outdated"{% elif item.status == 'up-to-date' %}class="up-to-date"{% endif %}>
-            <td>{{ item.package }}</td>
-            <td>{{ item.version_rosa }}</td>
-            <td>{{ item.version_upstream }}</td>
-            <td>{{ item.url }}</td>
-            <td>{{ item.status }}</td>
-	    <td>{{ item.upgrade }}</td>
+        {% for row in rows %}
+          <tr {% if row[4] == 'outdated' %}class="outdated"{% elif row[4] == 'up-to-date' %}class="up-to-date"{% endif %}>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+            <td>{{ row[4] }}</td>
+	    <td>{{ row[5] }}</td>
             <td>
               <form method="POST" action="/run_command">
-                <input type="hidden" name="package" value="{{ item.package }}">
+                <input type="hidden" name="package" value="{{ row[0] }}">
                 <button type="submit">Run</button>
               </form>
               <form method="POST" action="/run_single">
-                <input type="hidden" name="package" value="{{ item.package }}">
+                <input type="hidden" name="package" value="{{ row[0] }}">
                 <button type="submit">Check</button>
               </form>
             </td>

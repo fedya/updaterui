@@ -9,6 +9,7 @@ import json
 import rpm
 import os
 import argparse
+import sqlite3
 
 
 headers = {
@@ -23,6 +24,47 @@ headers = {
 api_key = os.environ.get('API_KEY')
 github_headers = {'User-Agent': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.2171.95 Safari/537.36',
                   'Authorization': f'token {api_key}'}
+
+
+def create_database():
+    conn = sqlite3.connect('mydatabase.db')
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS mytable
+                      (package text PRIMARY KEY, version_rosa text, version_upstream text,
+                       url text, status text, upgrade text)''')
+
+    conn.commit()
+    conn.close()
+
+
+def add_or_update_data(result):
+    create_database()
+    conn = sqlite3.connect('mydatabase.db')
+    cursor = conn.cursor()
+    query = 'SELECT COUNT(*) FROM mytable WHERE package = ?'
+    values = (result['package'], )
+    cursor.execute(query, values)
+    count = cursor.fetchone()[0]
+
+    if count > 0:
+        query = '''UPDATE mytable
+                   SET version_rosa = ?, version_upstream = ?, url = ?, status = ?, upgrade = ?
+                   WHERE package = ?'''
+        values = (result['version_rosa'], result['version_upstream'], result['url'],
+                  result['status'], result['upgrade'], result['package'])
+        cursor.execute(query, values)
+        print("record updated in db")
+    else:
+        query = '''INSERT INTO mytable (package, version_rosa, version_upstream, url, status, upgrade)
+                   VALUES (?, ?, ?, ?, ?, ?)'''
+        values = (result['package'], result['version_rosa'], result['version_upstream'],
+                  result['url'], result['status'], result['upgrade'])
+        cursor.execute(query, values)
+        print("added to sqlite db")
+
+    conn.commit()
+    conn.close()
+
 
 def repology(package):
     url = 'https://repology.org/api/v1/project/{}'.format(package)
@@ -57,13 +99,36 @@ def check_python_module(package):
     return "0"
 
 
-def compare_versions(v1, v2):
+def c1ompare_versions(v1, v2):
     try:
         if LooseVersion(v1) < LooseVersion(v2):
             # outdated
             return "outdated"
         elif LooseVersion(v1) == LooseVersion(v2):
             # same
+            return "up-to-date"
+        else:
+            # our newer
+            return "our-newer"
+    except Exception:
+        return "something wrong here"
+        pass
+
+def compare_versions(v1, v2):
+    print("comparing")
+    print(v1, v2)
+    print(v1, v2)
+    print(v1, v2)
+    print(v1, v2)
+    print(v1, v2)
+    try:
+        if LooseVersion(v1) < LooseVersion(v2):
+            print("outdated")
+            # outdated
+            return "outdated"
+        elif LooseVersion(v1) == LooseVersion(v2):
+            # same
+            print("up-to-date")
             return "up-to-date"
         else:
             # our newer
@@ -80,38 +145,36 @@ def has_latin_letters(s):
 def gh_check(package, url):
     split_url = url.split("/")[:-1]
     apibase = 'https://api.github.com/repos' + '/' + split_url[3] + '/' + split_url[4]
-    print(apibase)
     tag_url = apibase + "/tags"
     release_url = apibase + "/releases/latest"
-    gh_versions = []
-
-    response_rel = requests.get(release_url, headers=github_headers)
     print(release_url)
+    gh_versions = []
+    response_rel = requests.get(release_url, headers=github_headers)
     if response_rel.ok:
        tag_name = re.sub(r"[^0-9\.]", "", response_rel.json()['tag_name'])
-       if tag_name and has_latin_letters(tag_name):
+       if len(tag_name) > 0 and has_latin_letters(tag_name):
+           print("tag_name")
            gh_versions.append("0")
        elif tag_name:
            gh_versions.append(tag_name)
-       else:
-           gh_versions.append("0")
+    else:
+        gh_versions.append("0")
 
     response_tag = requests.get(tag_url, headers=github_headers)
     print(tag_url)
     if response_tag.ok:
        data = response_tag.json()
-       if data:
+       if len(data) > 0:
           project_name = (data[0]['name'])
           versions = sorted(data, key=lambda x: x['name'], reverse=True)
           tag_version = versions[0]
-          print(tag_version)
           clean_tag = re.sub(r"[^0-9\.]", "", tag_version["name"])
           if clean_tag and has_latin_letters(clean_tag):
               gh_versions.append("0")
           elif clean_tag:
               gh_versions.append(clean_tag)
-          else:
-              gh_versions.append("0")
+    else:
+        gh_versions.append("0")
 
     if len(gh_versions) > 1:
        if compare_versions(gh_versions[0], gh_versions[1]) == "our-newer":
@@ -120,8 +183,12 @@ def gh_check(package, url):
        if compare_versions(gh_versions[0], gh_versions[1]) == "outdated":
            print("version obtained from RELEASE [{}] is newer than in TAG [{}] json".format(gh_versions[1], gh_versions[0]))
            return gh_versions[1]
+       if compare_versions(gh_versions[0], gh_versions[1]) == "up-to-date":
+           print("version obtained from RELEASE [{}] is SAME as in TAG [{}] json".format(gh_versions[1], gh_versions[0]))
+           return gh_versions[0]
     if len(gh_versions) == 1:
        return gh_versions[0]
+    return "0"
 
 def get_latest_version(package, url_base):
     if package.startswith("python-"):
@@ -129,7 +196,10 @@ def get_latest_version(package, url_base):
        return check_python_module(package)
     if "github" in url_base:
        print("checking github")
-       return gh_check(package, url_base)
+       try:
+           return gh_check(package, url_base)
+       except Exception:
+           return "0"
     else:
        upstream_version, repo = repology(package)
        return upstream_version
@@ -169,67 +239,43 @@ def get_rosa_version(package):
                        nvs.append(filename)
                        return version, source_link
         except:
-            print(version, source_link)
             return version, source_link
         finally:
             os.remove(spec_file)
-    print(version)
     return version, source_link
 
 
 def update_single(package):
-    with open('output.json', 'r') as f:
-        data = json.load(f)
     found = False
     rosa_version = "0"
     upstream_version = "0"
     status = "0"
-    rosa_version, url_base = get_rosa_version(package) # здесь нужно поставить функцию-заглушку для получения версии из Rosa
-    try:
-        upstream_version = get_latest_version(package, url_base)
-        status = compare_versions(rosa_version, upstream_version)
-    except Exception:
-        pass
-
-    for row in data:
-        if row['package'] == package:
-            row['version_rosa'] = rosa_version
-            row['version_upstream'] = upstream_version
-            row['status'] = status
-            row['url'] = url_base
-            found = True
-            break
-
-    if not found:
-        new_row = {
-            'package': package,
-            'version_rosa': rosa_version,
-            'version_upstream': upstream_version,
-            'url': url_base,
-            'status': '',
-            'upgrade': ''
-        }
-        data.append(new_row)
-
-    with open('output.json', 'w') as f:
-        json.dump(data, f, indent=4)
+    rosa_version, url_base = get_rosa_version(package)
+    upstream_version = get_latest_version(package, url_base)
+    status = compare_versions(rosa_version, upstream_version)
+    data = {
+        'package': package,
+        'version_rosa': rosa_version,
+        'version_upstream': upstream_version,
+        'url': url_base,
+        'status': status,
+        'upgrade': ''
+    }
+    print(data)
+    add_or_update_data(data)
 
 
-def generate_json():
+def generate_data():
     with open("packages.txt") as f:
         packages = [line.strip() for line in f.readlines()]
-    results = []
     rosa_version = "0"
     upstream_version = "0"
     status = "0"
-
     for package in packages:
-        print(get_rosa_version(package))
+        print(package)
         rosa_version, url_base = get_rosa_version(package)
-        try:
-            upstream_version = get_latest_version(package, url_base)
-        except Exception:
-            pass
+        upstream_version = get_latest_version(package, url_base)
+        # problem
         status = compare_versions(rosa_version, upstream_version)
         result = {
             "package": package,
@@ -239,10 +285,8 @@ def generate_json():
             "status": status,
             "upgrade": ""
         }
-        results.append(result)
-
-    with open("output.json", "w") as f:
-        json.dump(results, f, indent=4)
+        print(result)
+        add_or_update_data(result)
 
 
 def main():
@@ -252,7 +296,7 @@ def main():
     args = parser.parse_args()
 
     if args.generate_all:
-        generate_json()
+        generate_data()
     if args.generate_single:
         update_single(args.generate_single)
 
