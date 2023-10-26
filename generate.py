@@ -91,6 +91,39 @@ def is_valid_package_info(repology):
     return False
 
 
+def qt_check(upstream_url):
+    # avoid nazi sanction
+    if 'qt.io' in upstream_url:
+        upstream_url = upstream_url.replace("https://download.qt.io/", "https://qt-mirror.dannhauer.de/")
+    elif 'qt-project' in upstream_url:
+        upstream_url = upstream_url.replace("http://download.qt-project.org/", "https://qt-mirror.dannhauer.de/")
+    print(upstream_url)
+    split_url = upstream_url.split("/")[:6]
+    project_url = '/'.join(split_url[:6])
+    req = requests.get(project_url, headers=headers, allow_redirects=True)
+    version_list = []
+    true_version_list = []
+    if req.status_code == 404:
+        print('requested url [{}] not found'.format(upstream_url))
+        return
+    if req.status_code == 200:
+        try:
+            first_url = re.finditer('href=[\'"]?([\d.]*\d+)', req.content.decode('utf-8'))
+            for match in first_url:
+                version_list.append(match[1])
+            upstream_max_version = max([[int(j) for j in i.split(".")] for i in version_list])
+            upstream_version = ".".join([str(i) for i in upstream_max_version])
+            print(upstream_version)
+            new_url = project_url + '/' + upstream_version
+            req2 = requests.get(new_url, headers=headers, allow_redirects=True)
+            if req2.status_code == 404:
+                print('requested url [{}] not found'.format(new_url))
+                return
+            return upstream_version
+        except:
+            return
+
+
 def check_python_module(package):
     url = "https://pypi.python.org/pypi/{}/json".format(package)
     response = requests.get(url)
@@ -188,6 +221,8 @@ def get_latest_version(package, url_base):
             return gh_check(package, url_base)
         except Exception:
             return "0"
+    elif 'qt.io' in url_base or 'qt-project' in url_base:
+        return qt_check(url_base)
     else:
         upstream_version, repo = repology(package)
         return upstream_version
