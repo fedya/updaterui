@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import requests
-from distutils.version import LooseVersion
+from packaging.version import Version
 import re
 import tempfile
 import json
@@ -67,14 +67,28 @@ def add_or_update_data(result):
 
 
 def repology(package):
-    url = 'https://repology.org/api/v1/project/{}'.format(package)
+    url = f'https://repology.org/api/v1/project/{package}'
     response = requests.get(url)
     data = response.json()
-    if data:
-        for d in data:
-            if all(k in d for k in ('status', 'repo')) and d['status'] in ('newest', 'untrusted', 'unique'):
-                return d['version'], d['repo']
+    print('im in repology')
+    if not data:
+        return "0", "0"
+
+    for package_info in data:
+        if is_valid_package_info(package_info):
+            return package_info['version'], package_info['repo']
+
     return "0", "0"
+
+def is_valid_package_info(repology):
+    required_keys = ('status', 'repo')
+    valid_statuses = ('newest', 'untrusted', 'unique')
+
+    if all(key in repology for key in required_keys):
+        if repology['status'] in valid_statuses:
+            return True
+
+    return False
 
 
 def check_python_module(package):
@@ -100,27 +114,15 @@ def check_python_module(package):
 
 
 def compare_versions(v1, v2):
-    print("comparing")
-    print(v1, v2)
-    print(v1, v2)
-    print(v1, v2)
-    print(v1, v2)
-    print(v1, v2)
     try:
-        if LooseVersion(v1) < LooseVersion(v2):
-            print("outdated")
-            # outdated
+        if Version(v1) < Version(v2):
             return "outdated"
-        elif LooseVersion(v1) == LooseVersion(v2):
-            # same
-            print("up-to-date")
+        elif Version(v1) == Version(v2):
             return "up-to-date"
         else:
-            # our newer
             return "our-newer"
     except Exception:
         return "something wrong here"
-        pass
 
 
 def has_latin_letters(s):
@@ -135,6 +137,7 @@ def gh_check(package, url):
     print(release_url)
     gh_versions = []
     response_rel = requests.get(release_url, headers=github_headers)
+    print(response_rel)
     if response_rel.ok:
        tag_name = re.sub(r"[^0-9\.]", "", response_rel.json()['tag_name'])
        if len(tag_name) > 0 and has_latin_letters(tag_name):
@@ -177,17 +180,17 @@ def gh_check(package, url):
 
 def get_latest_version(package, url_base):
     if package.startswith("python-"):
-       package = package.split("-", 1)[1]
-       return check_python_module(package)
-    if "github" in url_base:
-       print("checking github")
-       try:
-           return gh_check(package, url_base)
-       except Exception:
-           return "0"
+        package = package.split("-", 1)[1]
+        return check_python_module(package)
+    elif "github" in url_base:
+        print("checking github")
+        try:
+            return gh_check(package, url_base)
+        except Exception:
+            return "0"
     else:
-       upstream_version, repo = repology(package)
-       return upstream_version
+        upstream_version, repo = repology(package)
+        return upstream_version
     return "0"
 
 
