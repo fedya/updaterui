@@ -24,9 +24,19 @@ def get_db_connection():
     return rows
 
 
+
 @app.route('/')
 def index():
+    search_query = request.args.get('search')
     rows = get_db_connection()
+
+    if search_query:
+        filtered_rows = []
+        for row in rows:
+            if search_query.lower() in row[0].lower():
+                filtered_rows.append(row)
+        rows = filtered_rows
+
     return render_template('table.html', rows=rows)
 
 @app.route('/run_command', methods=['POST'])
