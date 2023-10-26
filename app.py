@@ -31,9 +31,11 @@ def index():
     rows = get_db_connection()
 
     if search_query:
+        search_terms = search_query.split()  # Split the search query into individual terms
         filtered_rows = []
         for row in rows:
-            if search_query.lower() in row[0].lower():
+            package_name = row[0].lower()
+            if any(term.lower() in package_name for term in search_terms):
                 filtered_rows.append(row)
         rows = filtered_rows
 
