@@ -99,21 +99,6 @@ def check_python_module(package):
     return "0"
 
 
-def c1ompare_versions(v1, v2):
-    try:
-        if LooseVersion(v1) < LooseVersion(v2):
-            # outdated
-            return "outdated"
-        elif LooseVersion(v1) == LooseVersion(v2):
-            # same
-            return "up-to-date"
-        else:
-            # our newer
-            return "our-newer"
-    except Exception:
-        return "something wrong here"
-        pass
-
 def compare_versions(v1, v2):
     print("comparing")
     print(v1, v2)
