@@ -68,17 +68,21 @@ def add_or_update_data(result):
 
 def repology(package):
     url = f'https://repology.org/api/v1/project/{package}'
-    response = requests.get(url)
-    data = response.json()
-    print('im in repology')
-    if not data:
+    try:
+        response = requests.get(url, timeout=20)
+        data = response.json()
+        print('im in repology')
+        if not data:
+            return "0", "0"
+
+        for package_info in data:
+            if is_valid_package_info(package_info):
+                return package_info['version'], package_info['repo']
+
         return "0", "0"
-
-    for package_info in data:
-        if is_valid_package_info(package_info):
-            return package_info['version'], package_info['repo']
-
-    return "0", "0"
+    except requests.exceptions.Timeout:
+        print('Request to repology timed out')
+        return "0", "0"
 
 def is_valid_package_info(repology):
     required_keys = ('status', 'repo')
